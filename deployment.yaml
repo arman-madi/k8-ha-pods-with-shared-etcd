@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: distributed-counter
+spec:
+  selector:
+    matchLabels:
+      app: distributed-counter
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: distributed-counter
+    spec:
+      containers:
+      - name: distributed-counter
+        image:  rmanmadi/k8-tutorial-samples:distributed-counter
+        imagePullPolicy: Always
+        env:
+          - name: MY_POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+          - name: MY_NODE_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.hostIP
+          - name: MY_NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+        volumeMounts:
+        - name: etcd-creds
+          mountPath: "/etc/ssl/etcd-connect"
+          readOnly: true
+      tolerations:
+        - key: "node-role.kubernetes.io/master"
+          operator: "Exists"
+          effect: "NoSchedule"
+          # These will move pods to a healthy node 10 seconds after a node is reported as either not-ready or unreachable
+        - key: "node.kubernetes.io/unreachable"
+          operator: "Exists"
+          effect: "NoExecute"
+          tolerationSeconds: 10
+        - key: "node.kubernetes.io/not-ready"
+          operator: "Exists"
+          effect: "NoExecute"
+          tolerationSeconds: 10
+      volumes:
+      - name: etcd-creds
+        secret:
+          secretName: etcd-creds
